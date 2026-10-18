@@ -1,0 +1,9 @@
+[
+  {
+    "id": "demo-001",
+    "especie": "Colibri",
+    "ubicacion": "Xochimilco",
+    "fecha_observacion": "2023-06-15",
+    "origen": "registro de ejemplo (sintetico)"
+  }
+]

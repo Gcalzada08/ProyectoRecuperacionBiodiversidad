@@ -1,0 +1,13 @@
+mes,temp_min,temp_max,humedad_media,precipitacion_mm
+Enero,10,21,47,1.2
+Febrero,10,23,48,4.1
+Marzo,13,25,50,1.5
+Abril,15,26,55,29
+Mayo,15,25,60,106.6
+Junio,15,28,65,35.1
+Julio,13,23,70,295.9
+Agosto,12,23,68,164.4
+Septiembre,12,24,65,99.6
+Octubre,13,23,55,53.6
+Noviembre,12,22,50,20.4
+Diciembre,10,18,45,87.8
