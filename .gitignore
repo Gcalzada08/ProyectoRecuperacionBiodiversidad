@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Keep the sensor sample log available to the Streamlit app deployment.
+!data/bronze/sensores_raw.log
