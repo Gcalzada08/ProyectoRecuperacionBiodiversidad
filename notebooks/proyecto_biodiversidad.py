@@ -3,6 +3,11 @@
 import pandas as pd
 import json
 from pathlib import Path
+import streamlit as st
+
+st.set_page_config(page_title="Proyecto de Biodiversidad", layout="wide")
+st.title("Proyecto de recuperación de biodiversidad")
+st.caption("Ingesta, limpieza y análisis de datos climáticos y geográficos")
 
 # Este script está en notebooks; la carpeta data está en la raíz del proyecto.
 PROJECT_DIR = Path(__file__).resolve().parent.parent
@@ -13,8 +18,8 @@ DATA_DIR = PROJECT_DIR / "data"
 # -------------------------------
 # Ejemplo: datos climáticos (temperatura, precipitación, humedad)
 clima = pd.read_csv(DATA_DIR / "bronze" / "clima_raw.csv")
-print("Clima (primeras filas):")
-print(clima.head())
+st.subheader("Datos climáticos (Bronze)")
+st.dataframe(clima.head(), hide_index=True)
 
 # -------------------------------
 # 2. Ingesta de datos semi-estructurados (API REST / JSON)
@@ -23,8 +28,8 @@ print(clima.head())
 with open(DATA_DIR / "bronze" / "biodiversidad_raw.json", "r", encoding="utf-8") as f:
     biodiversidad = json.load(f)
 
-print("\nBiodiversidad (ejemplo de registro):")
-print(biodiversidad)
+st.subheader("Registros de biodiversidad")
+st.dataframe(pd.json_normalize(biodiversidad), hide_index=True)
 
 # -------------------------------
 # 3. Ingesta de datos no estructurados (IoT / logs de sensores)
@@ -33,21 +38,20 @@ print(biodiversidad)
 with open(DATA_DIR / "bronze" / "sensores_raw.log", "r", encoding="utf-8") as f:
     sensores = f.readlines()
 
-print("\nSensores (primeras 5 líneas):")
-print(sensores[:5])
+st.subheader("Registros de sensores")
+st.dataframe(
+    pd.DataFrame({"Registro": [registro.rstrip("\n") for registro in sensores[:5]]}),
+    hide_index=True,
+)
 
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Cargar datos limpios desde Silver; si aún no existen, usar el bronze como fallback
+# Procesar siempre los datos originales para evitar volver a transformar Silver.
 silver_path = DATA_DIR / "silver" / "clima_clean.csv"
 bronze_path = DATA_DIR / "bronze" / "clima_raw.csv"
-
-if silver_path.exists():
-    df = pd.read_csv(silver_path)
-else:
-    df = pd.read_csv(bronze_path)
+df = pd.read_csv(bronze_path)
 
 df = df.copy()
 
@@ -60,13 +64,15 @@ missing_table = pd.DataFrame({
     "Variable": missing_data.index,
     "% de nulos": missing_data.values
 })
-print(missing_table)
+st.subheader("Porcentaje de valores faltantes")
+st.dataframe(missing_table, hide_index=True)
 
 # 2. Visualizar nulos con mapa de calor
 plt.figure(figsize=(10, 6))
 sns.heatmap(df.isnull(), cbar=False, cmap="viridis")
 plt.title("Mapa de calor de valores faltantes")
-plt.show()
+st.pyplot(plt.gcf())
+plt.close()
 
 from sklearn.impute import KNNImputer
 from sklearn.ensemble import IsolationForest
@@ -109,15 +115,16 @@ df_scaled = pd.DataFrame(scaled, columns=[f"{c}_scaled" for c in climate_cols])
 # 3. Dataset final en Gold
 out_dir = DATA_DIR / "gold"
 out_dir.mkdir(parents=True, exist_ok=True)
+gold_path = out_dir / "dataset_final.csv"
 df_final = pd.concat([df, df_scaled], axis=1)
-df_final.to_csv(out_dir / "dataset_final.csv", index=False)
+df_final.to_csv(gold_path, index=False)
+st.subheader("Dataset final (Gold)")
+st.dataframe(df_final, hide_index=True)
 
-import pandas as pd
+df = pd.read_csv(DATA_DIR / "bronze" / "clima_raw.csv")
 
-df = pd.read_csv("data/bronze/clima_raw.csv")
-
-# Mostrar todas las filas
-print(df.to_string())
+st.subheader("Datos climáticos completos")
+st.dataframe(df, hide_index=True)
 
 import matplotlib.pyplot as plt
 
@@ -134,7 +141,8 @@ pd.DataFrame(
 )['humedad_media'].hist(bins=10, color='salmon')
 plt.title("Después de imputación/outliers")
 
-plt.show()
+st.pyplot(plt.gcf())
+plt.close()
 
 import pandas as pd
 import numpy as np
@@ -143,7 +151,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import RobustScaler
 
 # 1. Cargar datos desde Bronze
-df = pd.read_csv("data/bronze/clima_raw.csv")
+df = pd.read_csv(DATA_DIR / "bronze" / "clima_raw.csv")
 
 # 2. Seleccionar variables numéricas para imputación
 X = df[['temp_min','temp_max','humedad_media','precipitacion_mm']]
@@ -166,13 +174,15 @@ df_scaled = pd.DataFrame(X_scaled, columns=['temp_min_scaled','temp_max_scaled',
 df_final = pd.concat([df, df_scaled], axis=1)
 
 # 7. Guardar en Silver
-df_final.to_csv("data/silver/clima_clean.csv", index=False)
+silver_path.parent.mkdir(parents=True, exist_ok=True)
+df_final.to_csv(silver_path, index=False)
 
-print(" Limpieza e imputación completadas. Archivo guardado en data/silver/clima_clean.csv")
-print(df_final.head())
+st.success(f"Limpieza e imputación completadas. Archivo guardado en {silver_path}.")
+st.subheader("Datos limpios (vista previa)")
+st.dataframe(df_final.head(), hide_index=True)
 
-# Mostrar todas las filas
-print(df_final.to_string())
+st.subheader("Datos limpios completos")
+st.dataframe(df_final, hide_index=True)
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -181,15 +191,18 @@ plt.figure(figsize=(8,6))
 sns.heatmap(df[['temp_min','temp_max','humedad_media','precipitacion_mm']].corr(),
             annot=True, cmap='coolwarm', center=0)
 plt.title("Mapa de calor de correlación")
-plt.show()
+st.pyplot(plt.gcf())
+plt.close()
 
 df[['temp_min','temp_max','humedad_media','precipitacion_mm']].hist(bins=10, figsize=(10,6), color='skyblue')
 plt.suptitle("Histogramas de distribución de variables de hábitat")
-plt.show()
+st.pyplot(plt.gcf())
+plt.close()
 
 sns.pairplot(df[['temp_min','temp_max','humedad_media','precipitacion_mm']], diag_kind='kde')
 plt.suptitle("Diagramas de dispersión multivariantes", y=1.02)
-plt.show()
+st.pyplot(plt.gcf())
+plt.close()
 
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
@@ -209,14 +222,15 @@ labels = kmeans.fit_predict(X_scaled)
 
 # Métrica de silueta
 sil_score = silhouette_score(X_scaled, labels)
-print("Coeficiente de silueta:", sil_score)
+st.metric("Coeficiente de silueta", f"{sil_score:.3f}")
 
 # Visualización de clusters
 plt.scatter(X_scaled[:,0], X_scaled[:,1], c=labels, cmap='viridis')
 plt.title("Clusters K-Means (temp_min vs temp_max)")
 plt.xlabel("temp_min (scaled)")
 plt.ylabel("temp_max (scaled)")
-plt.show()
+st.pyplot(plt.gcf())
+plt.close()
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -240,10 +254,11 @@ if geo_columns.issubset(df.columns):
     plt.xlabel("Longitud")
     plt.ylabel("Latitud")
     plt.legend(title="Zona")
-    plt.show()
+    st.pyplot(plt.gcf())
+    plt.close()
 else:
     missing_columns = ", ".join(sorted(geo_columns - set(df.columns)))
-    print(
+    st.info(
         "\nNo se generó la visualización geográfica: "
         f"faltan las columnas {missing_columns} en los datos."
     )
@@ -282,7 +297,8 @@ plt.title("Figura 5.1. Evidencia del sesgo: distribución geográfica de los reg
 plt.xlabel("Longitud")
 plt.ylabel("Latitud")
 plt.legend(title="Zona")
-plt.show()
+st.pyplot(plt.gcf())
+plt.close()
 
 import importlib.util
 import matplotlib.pyplot as plt
@@ -314,6 +330,8 @@ if importlib.util.find_spec("shap") is not None:
     else:
         class_shap_values = shap_values
 
-    shap.summary_plot(class_shap_values, X_test, plot_type="bar")
+    shap.summary_plot(class_shap_values, X_test, plot_type="bar", show=False)
+    st.pyplot(plt.gcf())
+    plt.close()
 else:
-    print("SHAP no está instalado; se omite la gráfica de explicabilidad.")
+    st.info("SHAP no está instalado; se omite la gráfica de explicabilidad.")
